@@ -1,6 +1,7 @@
 syntax = "proto3";
 
-package nginx;
+package k8s;
+option go_package = "github.com/nycmonkey/protoc-gen-gotemplate/examples/k8s";
 
 message Empty {
 }

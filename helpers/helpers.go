@@ -10,17 +10,17 @@ import (
 	"text/template"
 
 	"github.com/Masterminds/sprig"
-	"github.com/golang/protobuf/proto" // nolint:staticcheck
-	"github.com/golang/protobuf/protoc-gen-go/descriptor"
-	ggdescriptor "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway/descriptor"
+	ggdescriptorpb "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway/descriptor"
 	"github.com/huandu/xstrings"
 	options "google.golang.org/genproto/googleapis/api/annotations"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 var jsReservedRe = regexp.MustCompile(`(^|[^A-Za-z])(do|if|in|for|let|new|try|var|case|else|enum|eval|false|null|this|true|void|with|break|catch|class|const|super|throw|while|yield|delete|export|import|public|return|static|switch|typeof|default|extends|finally|package|private|continue|debugger|function|arguments|interface|protected|implements|instanceof)($|[^A-Za-z])`)
 
 var (
-	registry *ggdescriptor.Registry // some helpers need access to registry
+	registry *ggdescriptorpb.Registry // some helpers need access to registry
 )
 
 const timestamp = "timestamp"
@@ -174,7 +174,7 @@ var ProtoHelpersFuncMap = template.FuncMap{
 	"rustTypeWithPackage":          rustTypeWithPackage,
 }
 
-var pathMap map[interface{}]*descriptor.SourceCodeInfo_Location
+var pathMap map[interface{}]*descriptorpb.SourceCodeInfo_Location
 
 var store = newStore()
 
@@ -216,17 +216,17 @@ func getStore(key string) interface{} {
 	return store.getData(key)
 }
 
-func SetRegistry(reg *ggdescriptor.Registry) {
+func SetRegistry(reg *ggdescriptorpb.Registry) {
 	registry = reg
 }
 
-func InitPathMap(file *descriptor.FileDescriptorProto) {
-	pathMap = make(map[interface{}]*descriptor.SourceCodeInfo_Location)
+func InitPathMap(file *descriptorpb.FileDescriptorProto) {
+	pathMap = make(map[interface{}]*descriptorpb.SourceCodeInfo_Location)
 	addToPathMap(file.GetSourceCodeInfo(), file, []int32{})
 }
 
-func InitPathMaps(files []*descriptor.FileDescriptorProto) {
-	pathMap = make(map[interface{}]*descriptor.SourceCodeInfo_Location)
+func InitPathMaps(files []*descriptorpb.FileDescriptorProto) {
+	pathMap = make(map[interface{}]*descriptorpb.SourceCodeInfo_Location)
 	for _, file := range files {
 		addToPathMap(file.GetSourceCodeInfo(), file, []int32{})
 	}
@@ -234,13 +234,13 @@ func InitPathMaps(files []*descriptor.FileDescriptorProto) {
 
 // addToPathMap traverses through the AST adding SourceCodeInfo_Location entries to the pathMap.
 // Since the AST is a tree, the recursion finishes once it has gone through all the nodes.
-func addToPathMap(info *descriptor.SourceCodeInfo, i interface{}, path []int32) {
+func addToPathMap(info *descriptorpb.SourceCodeInfo, i interface{}, path []int32) {
 	loc := findLoc(info, path)
 	if loc != nil {
 		pathMap[i] = loc
 	}
 	switch d := i.(type) {
-	case *descriptor.FileDescriptorProto:
+	case *descriptorpb.FileDescriptorProto:
 		for index, descriptor := range d.MessageType {
 			addToPathMap(info, descriptor, newPath(path, 4, index))
 		}
@@ -250,7 +250,7 @@ func addToPathMap(info *descriptor.SourceCodeInfo, i interface{}, path []int32) 
 		for index, descriptor := range d.Service {
 			addToPathMap(info, descriptor, newPath(path, 6, index))
 		}
-	case *descriptor.DescriptorProto:
+	case *descriptorpb.DescriptorProto:
 		for index, descriptor := range d.Field {
 			addToPathMap(info, descriptor, newPath(path, 2, index))
 		}
@@ -260,11 +260,11 @@ func addToPathMap(info *descriptor.SourceCodeInfo, i interface{}, path []int32) 
 		for index, descriptor := range d.EnumType {
 			addToPathMap(info, descriptor, newPath(path, 4, index))
 		}
-	case *descriptor.EnumDescriptorProto:
+	case *descriptorpb.EnumDescriptorProto:
 		for index, descriptor := range d.Value {
 			addToPathMap(info, descriptor, newPath(path, 2, index))
 		}
-	case *descriptor.ServiceDescriptorProto:
+	case *descriptorpb.ServiceDescriptorProto:
 		for index, descriptor := range d.Method {
 			addToPathMap(info, descriptor, newPath(path, 2, index))
 		}
@@ -277,7 +277,7 @@ func newPath(base []int32, field int32, index int) []int32 {
 	return p
 }
 
-func findLoc(info *descriptor.SourceCodeInfo, path []int32) *descriptor.SourceCodeInfo_Location {
+func findLoc(info *descriptorpb.SourceCodeInfo, path []int32) *descriptorpb.SourceCodeInfo_Location {
 	for _, loc := range info.GetLocation() {
 		if samePath(loc.Path, path) {
 			return loc
@@ -298,7 +298,7 @@ func samePath(a, b []int32) bool {
 	return true
 }
 
-/*func findSourceInfoLocation(i interface{}) *descriptor.SourceCodeInfo_Location {
+/*func findSourceInfoLocation(i interface{}) *descriptorpb.SourceCodeInfo_Location {
 	if pathMap == nil {
 		return nil
 	}
@@ -324,7 +324,7 @@ func init() {
 	}
 }
 
-func getProtoFile(name string) *ggdescriptor.File {
+func getProtoFile(name string) *ggdescriptorpb.File {
 	if registry == nil {
 		return nil
 	}
@@ -335,7 +335,7 @@ func getProtoFile(name string) *ggdescriptor.File {
 	return file
 }
 
-func getMessageType(f *descriptor.FileDescriptorProto, name string) *ggdescriptor.Message {
+func getMessageType(f *descriptorpb.FileDescriptorProto, name string) *ggdescriptorpb.Message {
 	if registry != nil {
 		msg, err := registry.LookupMsg(".", name)
 		if err != nil {
@@ -350,7 +350,7 @@ func getMessageType(f *descriptor.FileDescriptorProto, name string) *ggdescripto
 	target := splits[len(splits)-1]
 	for _, m := range f.MessageType {
 		if target == *m.Name {
-			return &ggdescriptor.Message{
+			return &ggdescriptorpb.Message{
 				DescriptorProto: m,
 			}
 		}
@@ -358,7 +358,7 @@ func getMessageType(f *descriptor.FileDescriptorProto, name string) *ggdescripto
 	return nil
 }
 
-func getEnumValue(f []*descriptor.EnumDescriptorProto, name string) []*descriptor.EnumValueDescriptorProto {
+func getEnumValue(f []*descriptorpb.EnumDescriptorProto, name string) []*descriptorpb.EnumValueDescriptorProto {
 	for _, item := range f {
 		if strings.EqualFold(*item.Name, name) {
 			return item.GetValue()
@@ -368,8 +368,8 @@ func getEnumValue(f []*descriptor.EnumDescriptorProto, name string) []*descripto
 	return nil
 }
 
-func isFieldMessageTimeStamp(f *descriptor.FieldDescriptorProto) bool {
-	if f.Type != nil && *f.Type == descriptor.FieldDescriptorProto_TYPE_MESSAGE {
+func isFieldMessageTimeStamp(f *descriptorpb.FieldDescriptorProto) bool {
+	if f.Type != nil && *f.Type == descriptorpb.FieldDescriptorProto_TYPE_MESSAGE {
 		if strings.Compare(*f.TypeName, ".google.protobuf.Timestamp") == 0 {
 			return true
 		}
@@ -377,32 +377,32 @@ func isFieldMessageTimeStamp(f *descriptor.FieldDescriptorProto) bool {
 	return false
 }
 
-func isFieldMessage(f *descriptor.FieldDescriptorProto) bool {
-	if f.Type != nil && *f.Type == descriptor.FieldDescriptorProto_TYPE_MESSAGE {
+func isFieldMessage(f *descriptorpb.FieldDescriptorProto) bool {
+	if f.Type != nil && *f.Type == descriptorpb.FieldDescriptorProto_TYPE_MESSAGE {
 		return true
 	}
 
 	return false
 }
 
-func isFieldRepeated(f *descriptor.FieldDescriptorProto) bool {
+func isFieldRepeated(f *descriptorpb.FieldDescriptorProto) bool {
 	if f == nil {
 		return false
 	}
-	if f.Type != nil && f.Label != nil && *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	if f.Type != nil && f.Label != nil && *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 		return true
 	}
 
 	return false
 }
 
-func isFieldMap(f *descriptor.FieldDescriptorProto, m *descriptor.DescriptorProto) bool {
+func isFieldMap(f *descriptorpb.FieldDescriptorProto, m *descriptorpb.DescriptorProto) bool {
 	if f.TypeName == nil {
 		return false
 	}
 
 	shortName := shortType(*f.TypeName)
-	var nt *descriptor.DescriptorProto
+	var nt *descriptorpb.DescriptorProto
 	for _, t := range m.NestedType {
 		if *t.Name == shortName {
 			nt = t
@@ -432,13 +432,13 @@ func isFieldMap(f *descriptor.FieldDescriptorProto, m *descriptor.DescriptorProt
 	return true
 }
 
-func fieldMapKeyType(f *descriptor.FieldDescriptorProto, m *descriptor.DescriptorProto) *descriptor.FieldDescriptorProto {
+func fieldMapKeyType(f *descriptorpb.FieldDescriptorProto, m *descriptorpb.DescriptorProto) *descriptorpb.FieldDescriptorProto {
 	if f.TypeName == nil {
 		return nil
 	}
 
 	shortName := shortType(*f.TypeName)
-	var nt *descriptor.DescriptorProto
+	var nt *descriptorpb.DescriptorProto
 	for _, t := range m.NestedType {
 		if *t.Name == shortName {
 			nt = t
@@ -460,13 +460,13 @@ func fieldMapKeyType(f *descriptor.FieldDescriptorProto, m *descriptor.Descripto
 
 }
 
-func fieldMapValueType(f *descriptor.FieldDescriptorProto, m *descriptor.DescriptorProto) *descriptor.FieldDescriptorProto {
+func fieldMapValueType(f *descriptorpb.FieldDescriptorProto, m *descriptorpb.DescriptorProto) *descriptorpb.FieldDescriptorProto {
 	if f.TypeName == nil {
 		return nil
 	}
 
 	shortName := shortType(*f.TypeName)
-	var nt *descriptor.DescriptorProto
+	var nt *descriptorpb.DescriptorProto
 	for _, t := range m.NestedType {
 		if *t.Name == shortName {
 			nt = t
@@ -493,19 +493,20 @@ func fieldMapValueType(f *descriptor.FieldDescriptorProto, m *descriptor.Descrip
 //
 // example:
 // ```proto
-// message GetArticleResponse {
-//	Article article = 1;
-//	message Storage {
-//		  string code = 1;
+//
+//	message GetArticleResponse {
+//		Article article = 1;
+//		message Storage {
+//			  string code = 1;
+//		}
+//		repeated Storage storages = 2;
 //	}
-//	repeated Storage storages = 2;
-// }
+//
 // ```
 // Then the type of `storages` is `GetArticleResponse_Storage` for the go language.
-//
-func goTypeWithGoPackage(p *descriptor.FileDescriptorProto, f *descriptor.FieldDescriptorProto) string {
+func goTypeWithGoPackage(p *descriptorpb.FileDescriptorProto, f *descriptorpb.FieldDescriptorProto) string {
 	pkg := ""
-	if *f.Type == descriptor.FieldDescriptorProto_TYPE_MESSAGE || *f.Type == descriptor.FieldDescriptorProto_TYPE_ENUM {
+	if *f.Type == descriptorpb.FieldDescriptorProto_TYPE_MESSAGE || *f.Type == descriptorpb.FieldDescriptorProto_TYPE_ENUM {
 		if isTimestampPackage(*f.TypeName) {
 			pkg = timestamp
 		} else {
@@ -519,9 +520,9 @@ func goTypeWithGoPackage(p *descriptor.FileDescriptorProto, f *descriptor.FieldD
 }
 
 // Warning does not handle message embedded like goTypeWithGoPackage does.
-func goTypeWithPackage(f *descriptor.FieldDescriptorProto) string {
+func goTypeWithPackage(f *descriptorpb.FieldDescriptorProto) string {
 	pkg := ""
-	if *f.Type == descriptor.FieldDescriptorProto_TYPE_MESSAGE || *f.Type == descriptor.FieldDescriptorProto_TYPE_ENUM {
+	if *f.Type == descriptorpb.FieldDescriptorProto_TYPE_MESSAGE || *f.Type == descriptorpb.FieldDescriptorProto_TYPE_ENUM {
 		if isTimestampPackage(*f.TypeName) {
 			pkg = timestamp
 		} else {
@@ -531,62 +532,62 @@ func goTypeWithPackage(f *descriptor.FieldDescriptorProto) string {
 	return goType(pkg, f)
 }
 
-func haskellType(pkg string, f *descriptor.FieldDescriptorProto) string {
+func haskellType(pkg string, f *descriptorpb.FieldDescriptorProto) string {
 	switch *f.Type {
-	case descriptor.FieldDescriptorProto_TYPE_DOUBLE:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_DOUBLE:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[Float]"
 		}
 		return "Float"
-	case descriptor.FieldDescriptorProto_TYPE_FLOAT:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_FLOAT:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[Float]"
 		}
 		return "Float"
-	case descriptor.FieldDescriptorProto_TYPE_INT64:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_INT64:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[Int64]"
 		}
 		return "Int64"
-	case descriptor.FieldDescriptorProto_TYPE_UINT64:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_UINT64:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[Word]"
 		}
 		return "Word"
-	case descriptor.FieldDescriptorProto_TYPE_INT32:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_INT32:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[Int]"
 		}
 		return "Int"
-	case descriptor.FieldDescriptorProto_TYPE_UINT32:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_UINT32:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[Word]"
 		}
 		return "Word"
-	case descriptor.FieldDescriptorProto_TYPE_BOOL:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_BOOL:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[Bool]"
 		}
 		return "Bool"
-	case descriptor.FieldDescriptorProto_TYPE_STRING:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_STRING:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[Text]"
 		}
 		return "Text"
-	case descriptor.FieldDescriptorProto_TYPE_MESSAGE:
+	case descriptorpb.FieldDescriptorProto_TYPE_MESSAGE:
 		if pkg != "" {
 			pkg = pkg + "."
 		}
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return fmt.Sprintf("[%s%s]", pkg, shortType(*f.TypeName))
 		}
 		return fmt.Sprintf("%s%s", pkg, shortType(*f.TypeName))
-	case descriptor.FieldDescriptorProto_TYPE_BYTES:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_BYTES:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[Word8]"
 		}
 		return "Word8"
-	case descriptor.FieldDescriptorProto_TYPE_ENUM:
+	case descriptorpb.FieldDescriptorProto_TYPE_ENUM:
 		return fmt.Sprintf("%s%s", pkg, shortType(*f.TypeName))
 	default:
 		return "Generic"
@@ -594,9 +595,9 @@ func haskellType(pkg string, f *descriptor.FieldDescriptorProto) string {
 }
 
 // Warning does not handle message embedded like goTypeWithGoPackage does.
-func rustTypeWithPackage(f *descriptor.FieldDescriptorProto) string {
+func rustTypeWithPackage(f *descriptorpb.FieldDescriptorProto) string {
 	pkg := ""
-	if *f.Type == descriptor.FieldDescriptorProto_TYPE_MESSAGE || *f.Type == descriptor.FieldDescriptorProto_TYPE_ENUM {
+	if *f.Type == descriptorpb.FieldDescriptorProto_TYPE_MESSAGE || *f.Type == descriptorpb.FieldDescriptorProto_TYPE_ENUM {
 		if isTimestampPackage(*f.TypeName) {
 			pkg = timestamp
 		} else {
@@ -606,34 +607,34 @@ func rustTypeWithPackage(f *descriptor.FieldDescriptorProto) string {
 	return rustType(pkg, f)
 }
 
-func rustType(pkg string, f *descriptor.FieldDescriptorProto) string {
-	isRepeat := *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED
+func rustType(pkg string, f *descriptorpb.FieldDescriptorProto) string {
+	isRepeat := *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED
 	typeName := "???"
 	switch *f.Type {
-	case descriptor.FieldDescriptorProto_TYPE_DOUBLE:
+	case descriptorpb.FieldDescriptorProto_TYPE_DOUBLE:
 		typeName = "f64"
-	case descriptor.FieldDescriptorProto_TYPE_FLOAT:
+	case descriptorpb.FieldDescriptorProto_TYPE_FLOAT:
 		typeName = "f32"
-	case descriptor.FieldDescriptorProto_TYPE_INT64:
+	case descriptorpb.FieldDescriptorProto_TYPE_INT64:
 		typeName = "i64"
-	case descriptor.FieldDescriptorProto_TYPE_UINT64:
+	case descriptorpb.FieldDescriptorProto_TYPE_UINT64:
 		typeName = "u64"
-	case descriptor.FieldDescriptorProto_TYPE_INT32:
+	case descriptorpb.FieldDescriptorProto_TYPE_INT32:
 		typeName = "i32"
-	case descriptor.FieldDescriptorProto_TYPE_UINT32:
+	case descriptorpb.FieldDescriptorProto_TYPE_UINT32:
 		typeName = "u32"
-	case descriptor.FieldDescriptorProto_TYPE_BOOL:
+	case descriptorpb.FieldDescriptorProto_TYPE_BOOL:
 		typeName = "bool"
-	case descriptor.FieldDescriptorProto_TYPE_STRING:
+	case descriptorpb.FieldDescriptorProto_TYPE_STRING:
 		typeName = "String"
-	case descriptor.FieldDescriptorProto_TYPE_MESSAGE:
+	case descriptorpb.FieldDescriptorProto_TYPE_MESSAGE:
 		if pkg != "" {
 			pkg = pkg + "."
 		}
 		typeName = fmt.Sprintf("%s%s", pkg, shortType(*f.TypeName))
-	case descriptor.FieldDescriptorProto_TYPE_BYTES:
+	case descriptorpb.FieldDescriptorProto_TYPE_BYTES:
 		typeName = "Vec<u8>"
-	case descriptor.FieldDescriptorProto_TYPE_ENUM:
+	case descriptorpb.FieldDescriptorProto_TYPE_ENUM:
 		typeName = fmt.Sprintf("%s%s", pkg, shortType(*f.TypeName))
 	default:
 		break
@@ -645,9 +646,9 @@ func rustType(pkg string, f *descriptor.FieldDescriptorProto) string {
 }
 
 // Warning does not handle message embedded like goTypeWithGoPackage does.
-func cppTypeWithPackage(f *descriptor.FieldDescriptorProto) string {
+func cppTypeWithPackage(f *descriptorpb.FieldDescriptorProto) string {
 	pkg := ""
-	if *f.Type == descriptor.FieldDescriptorProto_TYPE_MESSAGE || *f.Type == descriptor.FieldDescriptorProto_TYPE_ENUM {
+	if *f.Type == descriptorpb.FieldDescriptorProto_TYPE_MESSAGE || *f.Type == descriptorpb.FieldDescriptorProto_TYPE_ENUM {
 		if isTimestampPackage(*f.TypeName) {
 			pkg = timestamp
 		} else {
@@ -657,34 +658,34 @@ func cppTypeWithPackage(f *descriptor.FieldDescriptorProto) string {
 	return cppType(pkg, f)
 }
 
-func cppType(pkg string, f *descriptor.FieldDescriptorProto) string {
-	isRepeat := *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED
+func cppType(pkg string, f *descriptorpb.FieldDescriptorProto) string {
+	isRepeat := *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED
 	typeName := "???"
 	switch *f.Type {
-	case descriptor.FieldDescriptorProto_TYPE_DOUBLE:
+	case descriptorpb.FieldDescriptorProto_TYPE_DOUBLE:
 		typeName = "double"
-	case descriptor.FieldDescriptorProto_TYPE_FLOAT:
+	case descriptorpb.FieldDescriptorProto_TYPE_FLOAT:
 		typeName = "float"
-	case descriptor.FieldDescriptorProto_TYPE_INT64:
+	case descriptorpb.FieldDescriptorProto_TYPE_INT64:
 		typeName = "int64_t"
-	case descriptor.FieldDescriptorProto_TYPE_UINT64:
+	case descriptorpb.FieldDescriptorProto_TYPE_UINT64:
 		typeName = "uint64_t"
-	case descriptor.FieldDescriptorProto_TYPE_INT32:
+	case descriptorpb.FieldDescriptorProto_TYPE_INT32:
 		typeName = "int32_t"
-	case descriptor.FieldDescriptorProto_TYPE_UINT32:
+	case descriptorpb.FieldDescriptorProto_TYPE_UINT32:
 		typeName = "uint32_t"
-	case descriptor.FieldDescriptorProto_TYPE_BOOL:
+	case descriptorpb.FieldDescriptorProto_TYPE_BOOL:
 		typeName = "bool"
-	case descriptor.FieldDescriptorProto_TYPE_STRING:
+	case descriptorpb.FieldDescriptorProto_TYPE_STRING:
 		typeName = "std::string"
-	case descriptor.FieldDescriptorProto_TYPE_MESSAGE:
+	case descriptorpb.FieldDescriptorProto_TYPE_MESSAGE:
 		if pkg != "" {
 			pkg = pkg + "."
 		}
 		typeName = fmt.Sprintf("%s%s", pkg, shortType(*f.TypeName))
-	case descriptor.FieldDescriptorProto_TYPE_BYTES:
+	case descriptorpb.FieldDescriptorProto_TYPE_BYTES:
 		typeName = "std::vector<uint8_t>"
-	case descriptor.FieldDescriptorProto_TYPE_ENUM:
+	case descriptorpb.FieldDescriptorProto_TYPE_ENUM:
 		typeName = fmt.Sprintf("%s%s", pkg, shortType(*f.TypeName))
 	default:
 		break
@@ -695,54 +696,54 @@ func cppType(pkg string, f *descriptor.FieldDescriptorProto) string {
 	return typeName
 }
 
-func goTypeWithEmbedded(pkg string, f *descriptor.FieldDescriptorProto, p *descriptor.FileDescriptorProto) string {
+func goTypeWithEmbedded(pkg string, f *descriptorpb.FieldDescriptorProto, p *descriptorpb.FileDescriptorProto) string {
 	if pkg != "" {
 		pkg = pkg + "."
 	}
 	switch *f.Type {
-	case descriptor.FieldDescriptorProto_TYPE_DOUBLE:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_DOUBLE:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[]float64"
 		}
 		return "float64"
-	case descriptor.FieldDescriptorProto_TYPE_FLOAT:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_FLOAT:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[]float32"
 		}
 		return "float32"
-	case descriptor.FieldDescriptorProto_TYPE_INT64:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_INT64:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[]int64"
 		}
 		return "int64"
-	case descriptor.FieldDescriptorProto_TYPE_UINT64:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_UINT64:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[]uint64"
 		}
 		return "uint64"
-	case descriptor.FieldDescriptorProto_TYPE_INT32:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_INT32:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[]int32"
 		}
 		return "int32"
-	case descriptor.FieldDescriptorProto_TYPE_UINT32:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_UINT32:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[]uint32"
 		}
 		return "uint32"
-	case descriptor.FieldDescriptorProto_TYPE_BOOL:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_BOOL:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[]bool"
 		}
 		return "bool"
-	case descriptor.FieldDescriptorProto_TYPE_STRING:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_STRING:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[]string"
 		}
 		return "string"
-	case descriptor.FieldDescriptorProto_TYPE_MESSAGE:
+	case descriptorpb.FieldDescriptorProto_TYPE_MESSAGE:
 		name := *f.TypeName
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			fieldPackage := strings.Split(*f.TypeName, ".")
 			filePackage := strings.Split(*p.Package, ".")
 			// check if we are working with a message embedded.
@@ -753,12 +754,12 @@ func goTypeWithEmbedded(pkg string, f *descriptor.FieldDescriptorProto, p *descr
 			return fmt.Sprintf("[]*%s%s", pkg, shortType(name))
 		}
 		return fmt.Sprintf("*%s%s", pkg, shortType(name))
-	case descriptor.FieldDescriptorProto_TYPE_BYTES:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_BYTES:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[]byte"
 		}
 		return "byte"
-	case descriptor.FieldDescriptorProto_TYPE_ENUM:
+	case descriptorpb.FieldDescriptorProto_TYPE_ENUM:
 		name := *f.TypeName
 		fieldPackage := strings.Split(*f.TypeName, ".")
 		filePackage := strings.Split(*p.Package, ".")
@@ -772,130 +773,130 @@ func goTypeWithEmbedded(pkg string, f *descriptor.FieldDescriptorProto, p *descr
 	}
 }
 
-//Deprecated. Instead use goTypeWithEmbedded
-func goType(pkg string, f *descriptor.FieldDescriptorProto) string {
+// Deprecated. Instead use goTypeWithEmbedded
+func goType(pkg string, f *descriptorpb.FieldDescriptorProto) string {
 	if pkg != "" {
 		pkg = pkg + "."
 	}
 	switch *f.Type {
-	case descriptor.FieldDescriptorProto_TYPE_DOUBLE:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_DOUBLE:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[]float64"
 		}
 		return "float64"
-	case descriptor.FieldDescriptorProto_TYPE_FLOAT:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_FLOAT:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[]float32"
 		}
 		return "float32"
-	case descriptor.FieldDescriptorProto_TYPE_INT64:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_INT64:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[]int64"
 		}
 		return "int64"
-	case descriptor.FieldDescriptorProto_TYPE_UINT64:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_UINT64:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[]uint64"
 		}
 		return "uint64"
-	case descriptor.FieldDescriptorProto_TYPE_INT32:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_INT32:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[]int32"
 		}
 		return "int32"
-	case descriptor.FieldDescriptorProto_TYPE_UINT32:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_UINT32:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[]uint32"
 		}
 		return "uint32"
-	case descriptor.FieldDescriptorProto_TYPE_BOOL:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_BOOL:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[]bool"
 		}
 		return "bool"
-	case descriptor.FieldDescriptorProto_TYPE_STRING:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_STRING:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[]string"
 		}
 		return "string"
-	case descriptor.FieldDescriptorProto_TYPE_MESSAGE:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_MESSAGE:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return fmt.Sprintf("[]*%s%s", pkg, shortType(*f.TypeName))
 		}
 		return fmt.Sprintf("*%s%s", pkg, shortType(*f.TypeName))
-	case descriptor.FieldDescriptorProto_TYPE_BYTES:
-		if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	case descriptorpb.FieldDescriptorProto_TYPE_BYTES:
+		if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 			return "[]byte"
 		}
 		return "byte"
-	case descriptor.FieldDescriptorProto_TYPE_ENUM:
+	case descriptorpb.FieldDescriptorProto_TYPE_ENUM:
 		return fmt.Sprintf("*%s%s", pkg, shortType(*f.TypeName))
 	default:
 		return "interface{}"
 	}
 }
 
-func goZeroValue(f *descriptor.FieldDescriptorProto) string {
+func goZeroValue(f *descriptorpb.FieldDescriptorProto) string {
 	const nilString = "nil"
-	if *f.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+	if *f.Label == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
 		return nilString
 	}
 	switch *f.Type {
-	case descriptor.FieldDescriptorProto_TYPE_DOUBLE:
+	case descriptorpb.FieldDescriptorProto_TYPE_DOUBLE:
 		return "0.0"
-	case descriptor.FieldDescriptorProto_TYPE_FLOAT:
+	case descriptorpb.FieldDescriptorProto_TYPE_FLOAT:
 		return "0.0"
-	case descriptor.FieldDescriptorProto_TYPE_INT64:
+	case descriptorpb.FieldDescriptorProto_TYPE_INT64:
 		return "0"
-	case descriptor.FieldDescriptorProto_TYPE_UINT64:
+	case descriptorpb.FieldDescriptorProto_TYPE_UINT64:
 		return "0"
-	case descriptor.FieldDescriptorProto_TYPE_INT32:
+	case descriptorpb.FieldDescriptorProto_TYPE_INT32:
 		return "0"
-	case descriptor.FieldDescriptorProto_TYPE_UINT32:
+	case descriptorpb.FieldDescriptorProto_TYPE_UINT32:
 		return "0"
-	case descriptor.FieldDescriptorProto_TYPE_BOOL:
+	case descriptorpb.FieldDescriptorProto_TYPE_BOOL:
 		return "false"
-	case descriptor.FieldDescriptorProto_TYPE_STRING:
+	case descriptorpb.FieldDescriptorProto_TYPE_STRING:
 		return "\"\""
-	case descriptor.FieldDescriptorProto_TYPE_MESSAGE:
+	case descriptorpb.FieldDescriptorProto_TYPE_MESSAGE:
 		return nilString
-	case descriptor.FieldDescriptorProto_TYPE_BYTES:
+	case descriptorpb.FieldDescriptorProto_TYPE_BYTES:
 		return "0"
-	case descriptor.FieldDescriptorProto_TYPE_ENUM:
+	case descriptorpb.FieldDescriptorProto_TYPE_ENUM:
 		return nilString
 	default:
 		return nilString
 	}
 }
 
-func jsType(f *descriptor.FieldDescriptorProto) string {
+func jsType(f *descriptorpb.FieldDescriptorProto) string {
 	template := "%s"
 	if isFieldRepeated(f) {
 		template = "Array<%s>"
 	}
 
 	switch *f.Type {
-	case descriptor.FieldDescriptorProto_TYPE_MESSAGE,
-		descriptor.FieldDescriptorProto_TYPE_ENUM:
+	case descriptorpb.FieldDescriptorProto_TYPE_MESSAGE,
+		descriptorpb.FieldDescriptorProto_TYPE_ENUM:
 		return fmt.Sprintf(template, namespacedFlowType(*f.TypeName))
-	case descriptor.FieldDescriptorProto_TYPE_DOUBLE,
-		descriptor.FieldDescriptorProto_TYPE_FLOAT,
-		descriptor.FieldDescriptorProto_TYPE_INT64,
-		descriptor.FieldDescriptorProto_TYPE_UINT64,
-		descriptor.FieldDescriptorProto_TYPE_INT32,
-		descriptor.FieldDescriptorProto_TYPE_FIXED64,
-		descriptor.FieldDescriptorProto_TYPE_FIXED32,
-		descriptor.FieldDescriptorProto_TYPE_UINT32,
-		descriptor.FieldDescriptorProto_TYPE_SFIXED32,
-		descriptor.FieldDescriptorProto_TYPE_SFIXED64,
-		descriptor.FieldDescriptorProto_TYPE_SINT32,
-		descriptor.FieldDescriptorProto_TYPE_SINT64:
+	case descriptorpb.FieldDescriptorProto_TYPE_DOUBLE,
+		descriptorpb.FieldDescriptorProto_TYPE_FLOAT,
+		descriptorpb.FieldDescriptorProto_TYPE_INT64,
+		descriptorpb.FieldDescriptorProto_TYPE_UINT64,
+		descriptorpb.FieldDescriptorProto_TYPE_INT32,
+		descriptorpb.FieldDescriptorProto_TYPE_FIXED64,
+		descriptorpb.FieldDescriptorProto_TYPE_FIXED32,
+		descriptorpb.FieldDescriptorProto_TYPE_UINT32,
+		descriptorpb.FieldDescriptorProto_TYPE_SFIXED32,
+		descriptorpb.FieldDescriptorProto_TYPE_SFIXED64,
+		descriptorpb.FieldDescriptorProto_TYPE_SINT32,
+		descriptorpb.FieldDescriptorProto_TYPE_SINT64:
 		return fmt.Sprintf(template, "number")
-	case descriptor.FieldDescriptorProto_TYPE_BOOL:
+	case descriptorpb.FieldDescriptorProto_TYPE_BOOL:
 		return fmt.Sprintf(template, "boolean")
-	case descriptor.FieldDescriptorProto_TYPE_BYTES:
+	case descriptorpb.FieldDescriptorProto_TYPE_BYTES:
 		return fmt.Sprintf(template, "Uint8Array")
-	case descriptor.FieldDescriptorProto_TYPE_STRING:
+	case descriptorpb.FieldDescriptorProto_TYPE_STRING:
 		return fmt.Sprintf(template, "string")
 	default:
 		return fmt.Sprintf(template, "any")
@@ -932,12 +933,12 @@ func namespacedFlowType(s string) string {
 	return strings.Join(splitted, "$")
 }
 
-func httpPath(m *descriptor.MethodDescriptorProto) string {
+func httpPath(m *descriptorpb.MethodDescriptorProto) string {
 
-	ext, err := proto.GetExtension(m.Options, options.E_Http)
-	if err != nil {
-		return err.Error()
+	if !proto.HasExtension(m.Options, options.E_Http) {
+		return ""
 	}
+	ext := proto.GetExtension(m.Options, options.E_Http)
 	opts, ok := ext.(*options.HttpRule)
 	if !ok {
 		return fmt.Sprintf("extension is %T; want an HttpRule", ext)
@@ -961,11 +962,11 @@ func httpPath(m *descriptor.MethodDescriptorProto) string {
 	}
 }
 
-func httpPathsAdditionalBindings(m *descriptor.MethodDescriptorProto) []string {
-	ext, err := proto.GetExtension(m.Options, options.E_Http)
-	if err != nil {
-		panic(err.Error())
+func httpPathsAdditionalBindings(m *descriptorpb.MethodDescriptorProto) []string {
+	if !proto.HasExtension(m.Options, options.E_Http) {
+		panic("missing http extension")
 	}
+	ext := proto.GetExtension(m.Options, options.E_Http)
 	opts, ok := ext.(*options.HttpRule)
 	if !ok {
 		panic(fmt.Sprintf("extension is %T; want an HttpRule", ext))
@@ -995,12 +996,12 @@ func httpPathsAdditionalBindings(m *descriptor.MethodDescriptorProto) []string {
 	return httpPaths
 }
 
-func httpVerb(m *descriptor.MethodDescriptorProto) string {
+func httpVerb(m *descriptorpb.MethodDescriptorProto) string {
 
-	ext, err := proto.GetExtension(m.Options, options.E_Http)
-	if err != nil {
-		return err.Error()
+	if !proto.HasExtension(m.Options, options.E_Http) {
+		return ""
 	}
+	ext := proto.GetExtension(m.Options, options.E_Http)
 	opts, ok := ext.(*options.HttpRule)
 	if !ok {
 		return fmt.Sprintf("extension is %T; want an HttpRule", ext)
@@ -1024,12 +1025,12 @@ func httpVerb(m *descriptor.MethodDescriptorProto) string {
 	}
 }
 
-func httpBody(m *descriptor.MethodDescriptorProto) string {
+func httpBody(m *descriptorpb.MethodDescriptorProto) string {
 
-	ext, err := proto.GetExtension(m.Options, options.E_Http)
-	if err != nil {
-		return err.Error()
+	if !proto.HasExtension(m.Options, options.E_Http) {
+		return ""
 	}
+	ext := proto.GetExtension(m.Options, options.E_Http)
 	opts, ok := ext.(*options.HttpRule)
 	if !ok {
 		return fmt.Sprintf("extension is %T; want an HttpRule", ext)
@@ -1037,7 +1038,7 @@ func httpBody(m *descriptor.MethodDescriptorProto) string {
 	return opts.Body
 }
 
-func urlHasVarsFromMessage(path string, d *ggdescriptor.Message) bool {
+func urlHasVarsFromMessage(path string, d *ggdescriptorpb.Message) bool {
 	for _, field := range d.Field {
 		if !isFieldMessage(field) {
 			if strings.Contains(path, fmt.Sprintf("{%s}", *field.Name)) {
@@ -1109,11 +1110,11 @@ func replaceDict(src string, dict map[string]interface{}) string {
 	return src
 }
 
-func goPkg(f *descriptor.FileDescriptorProto) string {
+func goPkg(f *descriptorpb.FileDescriptorProto) string {
 	return f.Options.GetGoPackage()
 }
 
-func goPkgLastElement(f *descriptor.FileDescriptorProto) string {
+func goPkgLastElement(f *descriptorpb.FileDescriptorProto) string {
 	pkg := goPkg(f)
 	pkgSplitted := strings.Split(pkg, "/")
 	return pkgSplitted[len(pkgSplitted)-1]

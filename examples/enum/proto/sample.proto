@@ -1,5 +1,6 @@
 syntax = "proto3";
 package Sample;
+option go_package = "github.com/nycmonkey/protoc-gen-gotemplate/examples/enum/proto";
 
 enum Colors {
     red = 0;

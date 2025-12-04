@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 package user;
+option go_package = "github.com/nycmonkey/protoc-gen-gotemplate/examples/go-kit/services/user";
 
 service UserService {
   rpc CreateUser(CreateUserRequest) returns (CreateUserResponse) {}

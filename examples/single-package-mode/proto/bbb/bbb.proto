@@ -1,6 +1,6 @@
 syntax = "proto3";
-
 package the.bbb.package;
+option go_package = "github.com/nycmonkey/protoc-gen-gotemplate/examples/single-package-mode/proto/bbb";
 
 option go_package = "moul.io/protoc-gen-gotemplate/examples/single-package-mode/output/bbb";
 

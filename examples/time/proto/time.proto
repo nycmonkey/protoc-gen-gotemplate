@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 package foo;
+option go_package = "github.com/nycmonkey/protoc-gen-gotemplate/examples/time/proto";
 
 import "google/protobuf/timestamp.proto";
 

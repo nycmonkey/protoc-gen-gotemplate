@@ -3,10 +3,6 @@ package pgghelpers
 import (
 	"log"
 	"strings"
-
-	"github.com/golang/protobuf/protoc-gen-go/generator" // nolint:staticcheck
-	plugin_go "github.com/golang/protobuf/protoc-gen-go/plugin"
-	ggdescriptor "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway/descriptor"
 )
 
 const (
@@ -23,11 +19,10 @@ type Parameters struct {
 	FileMode          bool
 }
 
-func ParseParams(g *generator.Generator) {
-
+func ParseParams(parameter string) Parameters {
 	var params Parameters
 
-	if parameter := g.Request.GetParameter(); parameter != "" {
+	if parameter != "" {
 		for _, param := range strings.Split(parameter, ",") {
 			parts := strings.Split(param, "=")
 			if len(parts) != 2 {
@@ -76,57 +71,5 @@ func ParseParams(g *generator.Generator) {
 			}
 		}
 	}
-
-	tmplMap := make(map[string]*plugin_go.CodeGeneratorResponse_File)
-	concatOrAppend := func(file *plugin_go.CodeGeneratorResponse_File) {
-		if val, ok := tmplMap[file.GetName()]; ok {
-			*val.Content += file.GetContent()
-		} else {
-			tmplMap[file.GetName()] = file
-			g.Response.File = append(g.Response.File, file)
-		}
-	}
-
-	if params.SinglePackageMode {
-		registry = ggdescriptor.NewRegistry()
-		SetRegistry(registry)
-		if err := registry.Load(g.Request); err != nil {
-			g.Error(err, "registry: failed to load the request")
-		}
-	}
-
-	// Generate the encoders
-	for _, file := range g.Request.GetProtoFile() {
-		if params.All {
-			if params.SinglePackageMode {
-				if _, err := registry.LookupFile(file.GetName()); err != nil {
-					g.Error(err, "registry: failed to lookup file %q", file.GetName())
-				}
-			}
-			encoder := NewGenericTemplateBasedEncoder(params.TemplateDir, file, params.Debug, params.DestinationDir)
-			for _, tmpl := range encoder.Files() {
-				concatOrAppend(tmpl)
-			}
-
-			continue
-		}
-
-		if params.FileMode {
-			if s := file.GetService(); s != nil && len(s) > 0 {
-				encoder := NewGenericTemplateBasedEncoder(params.TemplateDir, file, params.Debug, params.DestinationDir)
-				for _, tmpl := range encoder.Files() {
-					concatOrAppend(tmpl)
-				}
-			}
-
-			continue
-		}
-
-		for _, service := range file.GetService() {
-			encoder := NewGenericServiceTemplateBasedEncoder(params.TemplateDir, service, file, params.Debug, params.DestinationDir)
-			for _, tmpl := range encoder.Files() {
-				concatOrAppend(tmpl)
-			}
-		}
-	}
+	return params
 }

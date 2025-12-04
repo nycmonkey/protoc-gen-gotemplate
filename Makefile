@@ -1,4 +1,4 @@
-GOPKG ?= moul.io/protoc-gen-gotemplate
+GOPKG ?= github.com/nycmonkey/protoc-gen-gotemplate
 DOCKER_IMAGE ?= moul/protoc-gen-gotemplate
 GOBINS ?= . ./cmd/web-editor
 GOLIBS ?= .

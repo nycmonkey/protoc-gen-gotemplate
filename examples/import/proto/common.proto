@@ -1,8 +1,8 @@
 syntax = "proto3";
 
 package common;
+option go_package = "github.com/nycmonkey/protoc-gen-gotemplate/examples/import/output/models/common;common";
 
-option go_package = "models/common;common";
 
 message GetArticle{
   string id = 1;

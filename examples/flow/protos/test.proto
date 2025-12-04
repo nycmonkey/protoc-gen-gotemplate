@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package test;
+package flow;
+option go_package = "github.com/nycmonkey/protoc-gen-gotemplate/examples/flow/protos";
 
-option go_package = "github.com/united-drivers/models/go/test;testpb";
 
 service TestService {
   rpc TestNoStream(TestNoStreamRequest) returns (TestNoStreamReply);

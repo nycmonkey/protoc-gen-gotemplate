@@ -1,45 +1,47 @@
-package main // import "moul.io/protoc-gen-gotemplate"
+package main
 
 import (
-	"io/ioutil"
-	"os"
+	"fmt"
 
-	"github.com/golang/protobuf/proto"                   // nolint:staticcheck
-	"github.com/golang/protobuf/protoc-gen-go/generator" // nolint:staticcheck
+	"google.golang.org/protobuf/compiler/protogen"
+	"google.golang.org/protobuf/types/pluginpb"
 
-	pgghelpers "moul.io/protoc-gen-gotemplate/helpers"
+	pgghelpers "github.com/nycmonkey/protoc-gen-gotemplate/helpers"
 )
 
 func main() {
-	g := generator.New()
+	protogen.Options{}.Run(func(gen *protogen.Plugin) error {
+		gen.SupportedFeatures = uint64(pluginpb.CodeGeneratorResponse_FEATURE_PROTO3_OPTIONAL)
+		// Map to store generated content by filename
+		generatedFiles := make(map[string]string)
+		// Map to store import path by filename (using the first one encountered)
+		generatedImports := make(map[string]protogen.GoImportPath)
 
-	data, err := ioutil.ReadAll(os.Stdin)
-	if err != nil {
-		g.Error(err, "reading input")
-	}
+		for _, f := range gen.Files {
+			if !f.Generate {
+				continue
+			}
+			files, err := pgghelpers.GenerateFile(gen, f)
+			if err != nil {
+				return fmt.Errorf("%s: %w", f.Desc.Path(), err)
+			}
+			for _, file := range files {
+				name := file.GetName()
+				if _, ok := generatedFiles[name]; ok {
+					generatedFiles[name] += file.GetContent()
+				} else {
+					generatedFiles[name] = file.GetContent()
+					generatedImports[name] = f.GoImportPath
+				}
+			}
+		}
 
-	if err = proto.Unmarshal(data, g.Request); err != nil {
-		g.Error(err, "parsing input proto")
-	}
+		// Write all generated files
+		for name, content := range generatedFiles {
+			g := gen.NewGeneratedFile(name, generatedImports[name])
+			g.Write([]byte(content))
+		}
 
-	if len(g.Request.FileToGenerate) == 0 {
-		g.Fail("no files to generate")
-	}
-
-	g.CommandLineParameters(g.Request.GetParameter())
-
-	pgghelpers.ParseParams(g)
-
-	// Generate the protobufs
-	g.GenerateAllFiles()
-
-	data, err = proto.Marshal(g.Response)
-	if err != nil {
-		g.Error(err, "failed to marshal output proto")
-	}
-
-	_, err = os.Stdout.Write(data)
-	if err != nil {
-		g.Error(err, "failed to write output proto")
-	}
+		return nil
+	})
 }

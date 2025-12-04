@@ -26,3 +26,7 @@ gin-bin
 
 # IDE settings
 .idea
+
+# Example outputs
+examples/**/output
+examples/go-generate/gen/

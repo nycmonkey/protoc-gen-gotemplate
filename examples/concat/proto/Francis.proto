@@ -1,2 +1,3 @@
 syntax = "proto3";
-package Francis;
+package concat;
+option go_package = "github.com/nycmonkey/protoc-gen-gotemplate/examples/concat/proto";

@@ -1,23 +1,38 @@
-module moul.io/protoc-gen-gotemplate
+module github.com/nycmonkey/protoc-gen-gotemplate
+
+go 1.21
 
 require (
-	github.com/Masterminds/goutils v1.1.0 // indirect
-	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible
-	github.com/gobuffalo/packr/v2 v2.8.0
-	github.com/golang/protobuf v1.5.2
-	github.com/google/uuid v1.1.1 // indirect
-	github.com/gorilla/handlers v1.4.2
-	github.com/gorilla/mux v1.7.3
-	github.com/grpc-ecosystem/grpc-gateway v1.12.1
-	github.com/huandu/xstrings v1.3.0
-	github.com/imdario/mergo v0.3.8 // indirect
-	github.com/mitchellh/copystructure v1.0.0 // indirect
-	github.com/mitchellh/reflectwalk v1.0.1 // indirect
-	golang.org/x/crypto v0.0.0-20200115085410-6d4e4cb37c7d // indirect
-	google.golang.org/genproto v0.0.0-20200113173426-e1de0a7b01eb
-	google.golang.org/protobuf v1.27.1
-	gopkg.in/yaml.v2 v2.2.7 // indirect
+	github.com/gobuffalo/packr/v2 v2.8.3
+	github.com/gorilla/handlers v1.5.2
+	github.com/gorilla/mux v1.8.1
+	github.com/grpc-ecosystem/grpc-gateway v1.16.0
+	github.com/huandu/xstrings v1.3.3
+	google.golang.org/genproto/googleapis/api v0.0.0-20240528184218-531527333157
+	google.golang.org/protobuf v1.34.1
 )
 
-go 1.13
+require (
+	github.com/Masterminds/goutils v1.1.1 // indirect
+	github.com/Masterminds/semver v1.5.0 // indirect
+	github.com/felixge/httpsnoop v1.0.3 // indirect
+	github.com/ghodss/yaml v1.0.0 // indirect
+	github.com/gobuffalo/logger v1.0.6 // indirect
+	github.com/gobuffalo/packd v1.0.1 // indirect
+	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
+	github.com/golang/protobuf v1.5.4 // indirect
+	github.com/google/uuid v1.6.0 // indirect
+	github.com/imdario/mergo v0.3.16 // indirect
+	github.com/karrick/godirwalk v1.16.1 // indirect
+	github.com/markbates/errx v1.1.0 // indirect
+	github.com/markbates/oncer v1.0.0 // indirect
+	github.com/markbates/safe v1.0.1 // indirect
+	github.com/mitchellh/copystructure v1.2.0 // indirect
+	github.com/mitchellh/reflectwalk v1.0.2 // indirect
+	github.com/sirupsen/logrus v1.8.1 // indirect
+	golang.org/x/crypto v0.23.0 // indirect
+	golang.org/x/sys v0.20.0 // indirect
+	golang.org/x/term v0.20.0 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
+)

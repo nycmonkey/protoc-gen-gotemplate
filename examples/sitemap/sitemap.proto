@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 package sitemap;
+option go_package = "github.com/nycmonkey/protoc-gen-gotemplate/examples/sitemap";
 
 service DummyService {
   rpc Posts(Request) returns (Response) {}
